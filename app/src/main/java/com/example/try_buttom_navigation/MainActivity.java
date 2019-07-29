@@ -14,6 +14,7 @@ import android.os.Bundle;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import android.os.Environment;
 import android.view.View;
 import android.widget.Button;
 
@@ -35,10 +36,16 @@ import android.net.wifi.WifiManager;
 import android.os.SystemClock;
 import android.util.Log;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.ListIterator;
-
+import java.util.Calendar;
 import android.text.method.MovementMethod;
 import android.widget.Toast;
 
@@ -58,7 +65,12 @@ public class MainActivity extends AppCompatActivity {
     private double environmental_factor = 4;
     private String wifiList = "";
     private static PermissionListener mListener;
-    private static Activity activity;
+    private Activity activity;
+    private String FILE_NAME = "WIFI_LL.txt";
+    private String dataToStorage = "";
+    private File   myStorageFolder;
+    private File   myStorageFile;
+    private FileOutputStream fileOutputStream;
 
     public TextView tv1;
 
@@ -82,7 +94,8 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private static String[] PERMISSIONS_STORAGE = {"android.permission.ACCESS_FINE_LOCATION"};
+    private static String[] PERMISSIONS_STORAGE = {"android.permission.ACCESS_FINE_LOCATION",
+                                                   "android.permission.WRITE_EXTERNAL_STORAGE"};
 
 
     @Override
@@ -91,6 +104,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         BottomNavigationView navView = findViewById(R.id.nav_view);
         navView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+
+
+        /** buttons *****************************************************************************/
         final Button calibrate_A = findViewById(R.id.recalibrate_A);
         activity = this;
         calibrate_A.setOnClickListener(new View.OnClickListener() {
@@ -99,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
                 rssiAtOneMeter = wifiInfo.getRssi();
             }
         });
+
         final Button calibrate_N = findViewById(R.id.recalibrate_N);
         calibrate_N.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -108,24 +125,58 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        final Button write2File = findViewById(R.id.record_btn);
+        write2File.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                try{
+                    dataToStorage = Calendar.getInstance().getTime().toString() + '\n' +
+                                    "===================================================" +
+                                    ":  " +'\n' + wifiList +
+                                    "===================================================" +
+                                    '\n' + '\n' + '\n' + '\n';
+                    if(fileOutputStream != null){
+                        fileOutputStream.write(dataToStorage.getBytes());
+                    }
+                    else {
+                        Log.e("EXCEPTION", "fileOutputStream is null");
+                    }
+                }
+                catch (IOException e){
+                    Log.e("EXCEPTION","file write failed: " + e.toString());
+                }
+            }
+        });
 
 
-        if (Build.VERSION.SDK_INT >= 23) {//判断当前系统是不是Android6.0
+        // dynamically require the permission to use the fine localization
+        if (Build.VERSION.SDK_INT >= 23) {
             requestRuntimePermissions(PERMISSIONS_STORAGE, new PermissionListener() {
                 @Override
-                public void granted() {
-                    //权限申请通过
-                }
+                public void granted() {}
 
                 @Override
                 public void denied(List<String> deniedList) {
-                    //权限申请未通过
-                    for (String denied : deniedList) {
-                    }
+                    for (String denied : deniedList) {}
                 }
             });
         }
 
+        // create the file
+        if(isExternalStorageReadable() && isExternalStorageWritable()){
+            myStorageFolder = getPublicDocumentStorageDir("storage for wifi test");
+            FILE_NAME = Calendar.getInstance().getTime().toString().substring(4,19) + "_.txt";
+            myStorageFile = new File(myStorageFolder, FILE_NAME);
+            try{
+                fileOutputStream = new FileOutputStream(myStorageFile, true);
+            }
+            catch (FileNotFoundException e){
+                Log.e("EXCEPTION","File to get the file: " + e.toString());
+            }
+        }
+        else{
+            Log.e("EXCEPTION","file will be null");
+        }
 
 
         new Thread(){
@@ -137,7 +188,6 @@ public class MainActivity extends AppCompatActivity {
                 while(true){
                     SystemClock.sleep(500);
                     wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-                    LocationManager locationManager = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
                     wifiManager.startScan();
                     connectManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
                     netInfo = connectManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
@@ -158,15 +208,15 @@ public class MainActivity extends AppCompatActivity {
 
                     final String measureDistance ="param A: " + rssiAtOneMeter + '\n' +
                             "param N: " + environmental_factor + '\n' + '\n' +
-                            "FORMULA:" + '\n' + " lg(distance) = 10 ^ (|RSSI| - |A|)/(10 * N)" + '\n' +
+                            "FORMULA: " + '\n' + "lg(distance) = " + '\n' +
+                            "   10 ^ (|RSSI| - |A|)/(10 * N)" + '\n' +
                             "Measured Distance: " + measured_distance + '\n';
 
                     if(scanResultList.size()==0)
                         wifiList = "empty";
                     else
-                        wifiList = /*scanResultList.toString() + '\n' +
-                                            "-----------------------------------" +*/
-                                            FormatList(scanResultList);
+                        wifiList = FormatList(scanResultList);
+
                     runOnUiThread(new Runnable() {
                                       @Override
                                       public void run() {
@@ -177,32 +227,44 @@ public class MainActivity extends AppCompatActivity {
                                                   tv1.setText(wifiProperty);
                                                   calibrate_A.setVisibility(View.GONE);
                                                   calibrate_N.setVisibility(View.GONE);
+                                                  write2File.setVisibility(View.GONE);
                                                   break;
                                               case 1:
-                                                  tv1.setTextSize(22);
+                                                  tv1.setTextSize(18);
                                                   tv1.setText(measureDistance);
                                                   calibrate_A.setVisibility(View.VISIBLE);
                                                   calibrate_N.setVisibility(View.VISIBLE);
+                                                  write2File.setVisibility(View.GONE);
                                                   break;
                                               case 2:
                                                   tv1.setTextSize(10);
                                                   tv1.setText(wifiList);
                                                   calibrate_A.setVisibility(View.GONE);
                                                   calibrate_N.setVisibility(View.GONE);
+                                                  write2File.setVisibility(View.VISIBLE);
                                                   break;
                                           }
-//                                          tv1.setText(measureDistance);
                                       }
                                   });
                 }
             }
         }.start();
-
+//        if(fileOutputStream != null){
+//            try{
+//                fileOutputStream.close();
+//            }
+//            catch (IOException e){
+//                Log.e("EXCEPTION", "outputStream exception: " + e.toString());
+//            }
+//        }
+//        else {
+//            Log.e("EXCEPTION", "fileOutputStream is null");
+//        }
     }
 
-
-    private byte[] toBytes(int i)
-    {
+    /** transform the string part *******************************************************/
+    // integer to byte
+    private byte[] toBytes(int i){
         byte[] result = new byte[4];
 
         result[0] = (byte) (i >> 24);
@@ -212,9 +274,9 @@ public class MainActivity extends AppCompatActivity {
 
         return result;
     }
+    // extract useful information from the scanResult list.. SSID, MAC, RSSI
 
-    public String FormatList(List<ScanResult> scanResults)
-    {
+    public String FormatList(List<ScanResult> scanResults){
         String string = "";
         ListIterator<ScanResult> listIterator = scanResults.listIterator();
         while(listIterator.hasNext())
@@ -228,13 +290,14 @@ public class MainActivity extends AppCompatActivity {
         }
         return string;
     }
+    // apply the formula to compute the distance of the specific wifi
 
-    public double ComputeDistance(int RSSI)
-    {
+    public double ComputeDistance(int RSSI){
         double distance = Math.pow(10,(double)(Math.abs(RSSI) - Math.abs(rssiAtOneMeter)) /
                             (10 * environmental_factor));
         return distance;
     }
+    // format and make the wifi info readable
 
     public String FormatString(int value){
         String strValue ="";
@@ -251,7 +314,9 @@ public class MainActivity extends AppCompatActivity {
         return strValue;
     }
 
+    /**  permission part ***************************************************************/
     public interface PermissionListener {
+
         void granted();
         void denied(List<String> deniedList);
     }
@@ -277,8 +342,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(
-            int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (grantResults.length > 0) {
             List<String> deniedList = new ArrayList<>();
@@ -297,7 +361,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /* Checks if external storage is available for read and write */
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
 
+    /* Checks if external storage is available to at least read */
+    private boolean isExternalStorageReadable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state) ||
+                Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+    public File getPublicDocumentStorageDir(String documentName) {
+        // Get the directory for the user's public pictures directory.
+        File folder = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOCUMENTS), documentName);
+        if (!folder.mkdirs()) {
+            Log.e(null, "Directory not created");
+        }
+        return folder;
+    }
 }
-
-

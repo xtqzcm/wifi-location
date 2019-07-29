@@ -9,15 +9,15 @@
 
     <TextView
         android:id="@+id/tv1"
-        android:textSize="22sp"
-        android:textColor="#000000"
-        android:scrollbars="vertical"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/activity_horizontal_margin"
         android:layout_marginLeft="@dimen/activity_horizontal_margin"
         android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:scrollbars="vertical"
         android:text="@string/title_wifi_info"
+        android:textColor="#000000"
+        android:textSize="22sp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -50,12 +50,21 @@
         android:layout_width="@dimen/recalibrate_button_horizontal_margin"
         android:layout_height="@dimen/recalibrate_button_vertical_margin"
         android:layout_marginEnd="8dp"
-        android:layout_marginRight="8dp"
         android:layout_marginBottom="8dp"
         android:text="recalibrate N at 2 meters"
         android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@+id/recalibrate_A"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/record_btn"
+        android:layout_width="141dp"
+        android:layout_height="79dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="Record"
+        app:layout_constraintBottom_toTopOf="@+id/nav_view"
+        app:layout_constraintEnd_toEndOf="@+id/nav_view" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
