@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private double environmental_factor = 4;
     private String wifiList = "";
     private static PermissionListener mListener;
-    private Activity activity;
+    private static Activity activity;
     private String FILE_NAME = "WIFI_LL.txt";
     private String dataToStorage = "";
     private File   myStorageFolder;
